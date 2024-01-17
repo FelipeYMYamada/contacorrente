@@ -54,4 +54,31 @@ public class ErrorHandlerAdvice {
 				.status(HttpStatus.BAD_REQUEST.value())
 				.body(response);
 	}
+	
+	@ExceptionHandler(AccountNotFoundException.class)
+	public ResponseEntity<ErrorResponse> handleAccountNotFoundException(AccountNotFoundException e) {
+		ErrorResponse response = new ErrorResponse(
+				LocalDateTime.now(),
+				HttpStatus.NOT_FOUND.value(),
+				HttpStatus.NOT_FOUND.getReasonPhrase(),
+				List.of(e.getMessage()));
+		
+		return ResponseEntity
+				.status(HttpStatus.NOT_FOUND.value())
+				.body(response);
+	}
+	
+	@ExceptionHandler(AccountInsufficientBalanceException.class)
+	public ResponseEntity<ErrorResponse> handleAccountInsufficientBalanceException(AccountInsufficientBalanceException e) {
+		ErrorResponse response = new ErrorResponse(
+				LocalDateTime.now(),
+				HttpStatus.BAD_REQUEST.value(),
+				HttpStatus.BAD_REQUEST.getReasonPhrase(),
+				List.of(e.getMessage()));
+		
+		return ResponseEntity
+				.status(HttpStatus.BAD_REQUEST.value())
+				.body(response);
+	}
+	
 }
