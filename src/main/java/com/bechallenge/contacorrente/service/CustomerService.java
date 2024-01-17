@@ -24,7 +24,6 @@ public class CustomerService {
 	}
 	
 	public Customer create(Customer costumer) {
-		
 		return repository.save(costumer);
 	}
 	

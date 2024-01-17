@@ -3,9 +3,11 @@ package com.bechallenge.contacorrente.dto;
 import java.io.Serializable;
 import java.util.Objects;
 
+import org.springframework.hateoas.RepresentationModel;
+
 import com.fasterxml.jackson.annotation.JsonIgnore;
 
-public class CustomerRespDTO implements Serializable {
+public class CustomerRespDTO extends RepresentationModel<CustomerRespDTO> implements Serializable {
 	
 	private static final long serialVersionUID = 1L;
 

@@ -1,6 +1,10 @@
 package com.bechallenge.contacorrente.controller;
 
+import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.linkTo;
+import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.methodOn;
+
 import java.util.List;
+import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -31,47 +35,58 @@ public class CustomerController {
 	
 	@GetMapping
 	public List<CustomerRespDTO> findAll() {
-		return MapStructMapper.INSTANCE.toListCustomerDTO(service.findAll());
+		List<CustomerRespDTO> list = MapStructMapper.INSTANCE.toListCustomerDTO(service.findAll());
+		
+		list.stream().map(c -> addSelfHateos(c))
+			.collect(Collectors.toList());
+		
+		return list;
 	}
 	
 	@GetMapping("/{document}")
 	public CustomerRespDTO findByDocument(@PathVariable Long document) {
-		return MapStructMapper.INSTANCE.toCustormerRespDTO(
-					service.findByDocument(document)
-						.orElseThrow(() -> new CustomerNotFoundException("Customer not found with this document: " + document)));
+		CustomerRespDTO response = MapStructMapper.INSTANCE.toCustormerRespDTO(
+				service.findByDocument(document)
+					.orElseThrow(() -> new CustomerNotFoundException("Customer not found with this document: " + document)));
+		
+		return addSelfHateos(response);
 	}
 	
 	@PostMapping("/PF")
-	public Customer createPF(@Valid @RequestBody CustomerReqDTO request) {
+	public CustomerRespDTO createPF(@Valid @RequestBody CustomerReqDTO request) {
 		if(service.findByDocument(request.getDocument()).isPresent())
 			throw new CustomerDocumentDuplicatedException("Customer already register with this document ");
 		else {
 			Customer entity = MapStructMapper.INSTANCE.toCustomer(request);
 			entity.setEntityType("PF");
-			return service.create(entity);
+			CustomerRespDTO response = MapStructMapper.INSTANCE.toCustormerRespDTO(service.create(entity));
+			return addSelfHateos(response);
 		}
 	}
 	
 	@PostMapping("/PJ")
-	public Customer createPJ(@Valid @RequestBody CustomerReqDTO request) {
+	public CustomerRespDTO createPJ(@Valid @RequestBody CustomerReqDTO request) {
 		if(service.findByDocument(request.getDocument()).isPresent())
 			throw new CustomerDocumentDuplicatedException("Customer already register with this document ");
 		else {
 			Customer entity = MapStructMapper.INSTANCE.toCustomer(request);
 			entity.setEntityType("PJ");
-			return service.create(entity);
+			CustomerRespDTO response = MapStructMapper.INSTANCE.toCustormerRespDTO(service.create(entity));
+			return addSelfHateos(response);
 		}
 	}
 	
-	@PutMapping("/{document}")
-	public CustomerReqDTO update(@Valid @RequestBody CustomerReqDTO customer) {
+	@PutMapping
+	public CustomerRespDTO update(@Valid @RequestBody CustomerReqDTO customer) {
 		Customer entity = service.findByDocument(customer.getDocument())
 									.orElseThrow(() -> new CustomerNotFoundException("Customer not found with this document: " + customer.getDocument()));
 		entity.setName(customer.getName());
 		entity.setAddress(customer.getAddress());
 		entity.setPassword(customer.getPassword());
 		
-		return MapStructMapper.INSTANCE.toCustomerDTO(entity);
+		CustomerRespDTO response = MapStructMapper.INSTANCE.toCustormerRespDTO(service.update(entity));
+		
+		return addSelfHateos(response);
 	}
 	
 	@DeleteMapping("/{document}")
@@ -80,5 +95,13 @@ public class CustomerController {
 			.orElseThrow(() -> new CustomerNotFoundException("Customer not found with this document: " + document));
 		
 		service.delete(document);
+	}
+	
+	private CustomerRespDTO addSelfHateos(CustomerRespDTO response) {
+		response.add(
+				linkTo(
+						methodOn(CustomerController.class).findByDocument(response.getDocument()))
+				.withSelfRel());
+		return response;
 	}
 }
