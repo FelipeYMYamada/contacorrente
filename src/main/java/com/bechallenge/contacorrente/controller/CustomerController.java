@@ -19,10 +19,6 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.bechallenge.contacorrente.dto.CustomerReqDTO;
 import com.bechallenge.contacorrente.dto.CustomerRespDTO;
-import com.bechallenge.contacorrente.exception.CustomerDocumentDuplicatedException;
-import com.bechallenge.contacorrente.exception.CustomerNotFoundException;
-import com.bechallenge.contacorrente.mapper.MapStructMapper;
-import com.bechallenge.contacorrente.model.Customer;
 import com.bechallenge.contacorrente.service.CustomerService;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -39,7 +35,11 @@ import jakarta.validation.Valid;
 public class CustomerController {
 	
 	@Autowired
-	private CustomerService service;
+	private final CustomerService service;
+	
+	public CustomerController(CustomerService service) {
+		this.service = service;
+	}
 	
 	@GetMapping(produces = MediaType.APPLICATION_JSON_VALUE)
 	@Operation(summary = "List all accounts", description = "List all accounts", tags = "Customer",
@@ -49,7 +49,7 @@ public class CustomerController {
 			@ApiResponse(description = "Internal Server Error", responseCode = "500", content = @Content)
 	})
 	public List<CustomerRespDTO> findAll() {
-		List<CustomerRespDTO> list = MapStructMapper.INSTANCE.toListCustomerDTO(service.findAll());
+		List<CustomerRespDTO> list = service.findAll();
 		
 		list.stream().map(c -> addSelfHateos(c))
 			.collect(Collectors.toList());
@@ -68,11 +68,7 @@ public class CustomerController {
 			@ApiResponse(description = "Internal Server Error", responseCode = "500", content = @Content)
 	})
 	public CustomerRespDTO findByDocument(@PathVariable Long document) {
-		CustomerRespDTO response = MapStructMapper.INSTANCE.toCustormerRespDTO(
-				service.findByDocument(document)
-					.orElseThrow(() -> new CustomerNotFoundException("Customer not found with this document: " + document)));
-		
-		return addSelfHateos(response);
+		return addSelfHateos(service.findByDocument(document));
 	}
 	
 	@PostMapping(value = "/PF", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
@@ -85,14 +81,7 @@ public class CustomerController {
 			@ApiResponse(description = "Internal Server Error", responseCode = "500", content = @Content)
 	})
 	public CustomerRespDTO createPF(@Valid @RequestBody CustomerReqDTO request) {
-		if(service.findByDocument(request.getDocument()).isPresent())
-			throw new CustomerDocumentDuplicatedException("Customer already register with this document ");
-		else {
-			Customer entity = MapStructMapper.INSTANCE.toCustomer(request);
-			entity.setEntityType("PF");
-			CustomerRespDTO response = MapStructMapper.INSTANCE.toCustormerRespDTO(service.create(entity));
-			return addSelfHateos(response);
-		}
+		return addSelfHateos(service.create(request, "PF"));
 	}
 	
 	@PostMapping(value = "/PJ", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
@@ -105,14 +94,7 @@ public class CustomerController {
 			@ApiResponse(description = "Internal Server Error", responseCode = "500", content = @Content)
 	})
 	public CustomerRespDTO createPJ(@Valid @RequestBody CustomerReqDTO request) {
-		if(service.findByDocument(request.getDocument()).isPresent())
-			throw new CustomerDocumentDuplicatedException("Customer already register with this document ");
-		else {
-			Customer entity = MapStructMapper.INSTANCE.toCustomer(request);
-			entity.setEntityType("PJ");
-			CustomerRespDTO response = MapStructMapper.INSTANCE.toCustormerRespDTO(service.create(entity));
-			return addSelfHateos(response);
-		}
+		return addSelfHateos(service.create(request, "PJ"));
 	}
 	
 	@PutMapping(consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
@@ -125,16 +107,8 @@ public class CustomerController {
 			@ApiResponse(description = "Not Found", responseCode = "404", content = @Content),
 			@ApiResponse(description = "Internal Server Error", responseCode = "500", content = @Content)
 	})
-	public CustomerRespDTO update(@Valid @RequestBody CustomerReqDTO customer) {
-		Customer entity = service.findByDocument(customer.getDocument())
-									.orElseThrow(() -> new CustomerNotFoundException("Customer not found with this document: " + customer.getDocument()));
-		entity.setName(customer.getName());
-		entity.setAddress(customer.getAddress());
-		entity.setPassword(customer.getPassword());
-		
-		CustomerRespDTO response = MapStructMapper.INSTANCE.toCustormerRespDTO(service.update(entity));
-		
-		return addSelfHateos(response);
+	public CustomerRespDTO update(@Valid @RequestBody CustomerReqDTO request) {
+		return addSelfHateos(service.update(request));
 	}
 	
 	@DeleteMapping("/{document}")
@@ -147,9 +121,6 @@ public class CustomerController {
 			@ApiResponse(description = "Internal Server Error", responseCode = "500", content = @Content)
 	})
 	public void delete(@PathVariable Long document) {
-		service.findByDocument(document)
-			.orElseThrow(() -> new CustomerNotFoundException("Customer not found with this document: " + document));
-		
 		service.delete(document);
 	}
 	

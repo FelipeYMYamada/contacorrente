@@ -3,7 +3,6 @@ package com.bechallenge.contacorrente.controller;
 import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.linkTo;
 import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.methodOn;
 
-import java.math.BigDecimal;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -21,14 +20,7 @@ import com.bechallenge.contacorrente.dto.AccountReqDTO;
 import com.bechallenge.contacorrente.dto.AccountRespDTO;
 import com.bechallenge.contacorrente.dto.AccountTransferDTO;
 import com.bechallenge.contacorrente.dto.CustomerRespDTO;
-import com.bechallenge.contacorrente.exception.AccountInsufficientBalanceException;
-import com.bechallenge.contacorrente.exception.AccountNotFoundException;
-import com.bechallenge.contacorrente.exception.CustomerNotFoundException;
-import com.bechallenge.contacorrente.mapper.MapStructMapper;
-import com.bechallenge.contacorrente.model.Account;
-import com.bechallenge.contacorrente.model.Customer;
 import com.bechallenge.contacorrente.service.AccountService;
-import com.bechallenge.contacorrente.service.CustomerService;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.ArraySchema;
@@ -46,9 +38,6 @@ public class AccountController {
 	@Autowired
 	private AccountService service;
 	
-	@Autowired
-	private CustomerService customerService;
-	
 	@GetMapping(produces = MediaType.APPLICATION_JSON_VALUE)
 	@Operation(summary = "List all accounts", description = "List all accounts", tags = "Account",
 		responses = {
@@ -57,7 +46,7 @@ public class AccountController {
 			@ApiResponse(description = "Internal Server Error", responseCode = "500", content = @Content)
 	})
 	public List<AccountRespDTO> findAll() {
-		List<AccountRespDTO> list = MapStructMapper.INSTANCE.toListAccountDTO(service.findAll());
+		List<AccountRespDTO> list = service.findAll();
 		
 		list.stream().map(a -> addSelfHateos(a))
 			.collect(Collectors.toList());
@@ -76,11 +65,7 @@ public class AccountController {
 			@ApiResponse(description = "Internal Server Error", responseCode = "500", content = @Content)
 	})
 	public AccountRespDTO findById(@PathVariable Long id) {
-		AccountRespDTO response = MapStructMapper.INSTANCE.toAccountRespDTO(
-				service.findById(id)
-					.orElseThrow(() -> new AccountNotFoundException("Account not found with ID: " + id)));
-		
-		return addSelfHateos(response);
+		return addSelfHateos(service.findById(id));
 	}
 
 	@GetMapping(value = "/customer/{document}", produces = MediaType.APPLICATION_JSON_VALUE)
@@ -94,7 +79,7 @@ public class AccountController {
 			@ApiResponse(description = "Internal Server Error", responseCode = "500", content = @Content)
 	})
 	public List<AccountRespDTO> findByDocument(@PathVariable Long document) {
-		List<AccountRespDTO> list = MapStructMapper.INSTANCE.toListAccountDTO(service.findByDocument(document));
+		List<AccountRespDTO> list = service.findByDocument(document);
 		
 		list.stream().map(a -> addSelfHateos(a))
 			.collect(Collectors.toList());
@@ -112,14 +97,7 @@ public class AccountController {
 			@ApiResponse(description = "Internal Server Error", responseCode = "500", content = @Content)
 	})
 	public AccountRespDTO create(@Valid @RequestBody AccountReqDTO request) {
-		Customer customer = customerService.findByDocument(
-				request.getCustomerDocument())
-					.orElseThrow(() -> new CustomerNotFoundException("Customer not found with document: " + request.getCustomerDocument()));
-		
-		Account entity = service.create(MapStructMapper.INSTANCE.toAccount(request));
-		entity.setCustomerId(customer);
-		
-		return addSelfHateos(MapStructMapper.INSTANCE.toAccountRespDTO(entity));
+		return addSelfHateos(service.create(request));
 	}
 	
 	@PutMapping(value = "/status/{agency}", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
@@ -132,11 +110,7 @@ public class AccountController {
 			@ApiResponse(description = "Internal Server Error", responseCode = "500", content = @Content)
 	})
 	public AccountRespDTO changeAccountStatus(@PathVariable Integer agency) {
-		Account entity = verifyAccountAgency(agency);
-		entity.setStatus(!entity.getStatus());
-		
-		AccountRespDTO response = MapStructMapper.INSTANCE.toAccountRespDTO(service.update(entity)); 
-		return addSelfHateos(response);
+		return addSelfHateos(service.updateStatus(agency));
 	}
 	
 	@PostMapping(value = "/transaction", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
@@ -149,52 +123,7 @@ public class AccountController {
 			@ApiResponse(description = "Internal Server Error", responseCode = "500", content = @Content)
 	})
 	public AccountRespDTO accountTransfer(@Valid @RequestBody AccountTransferDTO request) {
-		Account entity = verifyAccountAgency(request.getAgency());
-		Account destinationEntity = verifyAccountAgency(request.getDestinationAgency());
-		
-		if(checkAccountBalance(entity, request.getValue()))
-			throw new AccountInsufficientBalanceException("Account with agency " + request.getAgency() + " does not have sufficient balance for transaction");
-		
-		updateBalance(destinationEntity, request.getValue(), true);
-		
-		AccountRespDTO response = MapStructMapper.INSTANCE.toAccountRespDTO(updateBalance(entity, request.getValue(), false)); 
-		return addSelfHateos(response);
-	}
-	
-	/**
-	 * Método responsável por verificar disponibilidade de saldo na conta
-	 * @param Account - Conta de onde vai ser retirado o dinheiro
-	 * @param BigDecimal - Valor que vai ser transferido
-	 * @return
-	 */
-	private boolean checkAccountBalance(Account account, BigDecimal value) {
-		return account.getBalance().compareTo(value) <= 0;
-	}
-	
-	/**
-	 * Verifca se existe uma conta com a agência informada
-	 * @param Integer - Número da agência
-	 * @return Account - Conta encontrada com a agência informada 
-	 */
-	private Account verifyAccountAgency(Integer agency) {
-		return service.findByAgency(agency)
-				.orElseThrow(() -> new AccountNotFoundException("Account not found with agency: " + agency));
-	}
-	
-	/**
-	 * Atualiza saldo que atualiza saldo com o valor passado
-	 * @param Account - Conta que terá seu saldo atualizado
-	 * @param BigDecimal - Valor da transação
-	 * @param boolean - true: valor deverá somar / false: valor deverá subtrair
-	 * @return Account - Retorna Conta com seu valor atualizado
-	 */
-	private Account updateBalance(Account account, BigDecimal value, boolean accDestination) {
-		if(accDestination)
-			account.setBalance(account.getBalance().add(value));
-		else
-			account.setBalance(account.getBalance().subtract(value));
-		
-		return service.update(account);
+		return addSelfHateos(service.accontTransfer(request));
 	}
 	
 	private AccountRespDTO addSelfHateos(AccountRespDTO response) {

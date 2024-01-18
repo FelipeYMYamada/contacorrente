@@ -1,76 +1,128 @@
 package com.bechallenge.contacorrente.controller;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import java.util.Optional;
+import java.util.List;
 
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.Mockito;
-import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.http.MediaType;
+import org.springframework.test.web.servlet.MockMvc;
 
-import com.bechallenge.contacorrente.exception.CustomerNotFoundException;
-import com.bechallenge.contacorrente.model.Customer;
-import com.bechallenge.contacorrente.repository.CustomerRepository;
+import com.bechallenge.contacorrente.dto.CustomerReqDTO;
+import com.bechallenge.contacorrente.dto.CustomerRespDTO;
 import com.bechallenge.contacorrente.service.CustomerService;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
-@ExtendWith(MockitoExtension.class)
+@WebMvcTest(controllers = CustomerController.class)
 public class CustomerControllerTest {
-
-	@Mock
-	CustomerRepository repository;
 	
-	@InjectMocks
+	private final String URI = "/api/customer";
+
+	@Autowired
+	private MockMvc mockMvc;
+	
+	@Autowired
+    private ObjectMapper objectMapper;
+	
+	@MockBean
 	private CustomerService service;
 	
 	@Test
-	void findByDocument() {
-		Long document = 1L;
-		Optional<Customer> customer = Optional.of(new Customer(document, "PF", "Felipe", "Rua Teste", "123"));
+	void findAll() throws Exception {
+		List<CustomerRespDTO> list_mock = List.of(
+				new CustomerRespDTO(1L, "PF", "Felipe", "Rua Teste 1"),
+				new CustomerRespDTO(2L, "PF", "Joao", "Rua Teste 3"));
 		
-		Mockito.when(repository.findById(document))
-			.thenReturn(customer);
+		when(service.findAll())
+			.thenReturn(list_mock);
 		
-		Optional<Customer> _customer = service.findByDocument(document);
-		assertNotNull(_customer.get());
-		assertEquals(_customer.get().getDocument(), document);
+		mockMvc.perform(get(URI).contentType(MediaType.APPLICATION_JSON_VALUE))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.[0].document").value(1L))
+			.andExpect(jsonPath("$.[0].entityType").value("PF"))
+			.andExpect(jsonPath("$.[0].name").value("Felipe"))
+			.andExpect(jsonPath("$.[0].address").value("Rua Teste 1"))
+			.andExpect(jsonPath("$.[0].links.[0].href").value("http://localhost/api/customer/1"))
+			.andExpect(jsonPath("$.length()").value(2));
 	}
 	
 	@Test
-	void documentDontExists() {
-		Long document = 1L;
+	void findByDocument() throws Exception {
+		CustomerRespDTO mock = new CustomerRespDTO(1L, "PF", "Felipe", "Rua Teste 1");
 		
-		Mockito.when(repository.findById(document))
-			.thenThrow(CustomerNotFoundException.class);
+		when(service.findByDocument(1L))
+			.thenReturn(mock);
 		
-		assertThrows(CustomerNotFoundException.class, () -> {
-			service.findByDocument(document);
-		});
+		mockMvc.perform(get(URI + "/{document}", 1L).contentType(MediaType.APPLICATION_JSON_VALUE))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.document").value(1L))
+			.andExpect(jsonPath("$.entityType").value("PF"))
+			.andExpect(jsonPath("$.name").value("Felipe"))
+			.andExpect(jsonPath("$.address").value("Rua Teste 1"))
+			.andExpect(jsonPath("$._links.self.href").value("http://localhost/api/customer/1"));
 	}
 	
 	@Test
-	void createPFSuccess() {
-		Long document = 1L;
-		Customer customer = new Customer(document, "PF", "Felipe", "Rua Teste", "123");
+	void createPF() throws JsonProcessingException, Exception {
+		CustomerReqDTO request = new CustomerReqDTO(1L, "Felipe", "Rua Teste 1", "123");
+		CustomerRespDTO response = new CustomerRespDTO(1L, "PF", "Felipe", "Rua Teste 1");
 		
-		Mockito.when(repository.findById(document))
-			.thenReturn(null);
+		when(service.create(request, "PF")).thenReturn(response);
 		
-		Mockito.when(repository.save(customer))
-			.thenReturn(customer);
+		mockMvc.perform(post(URI + "/PF")
+				.contentType(MediaType.APPLICATION_JSON_VALUE)
+				.content(objectMapper.writeValueAsString(request)))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.document").value(1L))
+			.andExpect(jsonPath("$.entityType").value("PF"));
+	}
+	
+	@Test
+	void createPJ() throws JsonProcessingException, Exception {
+		CustomerReqDTO request = new CustomerReqDTO(1L, "Google", "Rua Teste 1", "123");
+		CustomerRespDTO response = new CustomerRespDTO(1L, "PJ", "Google", "Rua Teste 1");
 		
-		Optional<Customer> customerNull = service.findByDocument(document);
-		Customer _customer = service.create(customer);
+		when(service.create(request, "PJ")).thenReturn(response);
 		
-		assertNull(customerNull);
-		assertNotNull(_customer);
-		assertEquals(_customer.getDocument(), document);
-		assertEquals(_customer.getEntityType(), "PF");
+		mockMvc.perform(post(URI + "/PJ")
+				.contentType(MediaType.APPLICATION_JSON_VALUE)
+				.content(objectMapper.writeValueAsString(request)))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.document").value(1L))
+			.andExpect(jsonPath("$.entityType").value("PJ"));
+	}
+	
+	@Test
+	void update() throws JsonProcessingException, Exception {
+		CustomerReqDTO request = new CustomerReqDTO(1L, "Felipe", "Rua Teste 10", "123");
+		CustomerRespDTO response = new CustomerRespDTO(1L, "PF", "Felipe", "Rua Teste 10");
+		
+		when(service.create(request, "PF")).thenReturn(response);
+		
+		mockMvc.perform(post(URI + "/PF")
+				.contentType(MediaType.APPLICATION_JSON_VALUE)
+				.content(objectMapper.writeValueAsString(request)))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.document").value(1L))
+			.andExpect(jsonPath("$.entityType").value("PF"))
+			.andExpect(jsonPath("$.name").value("Felipe"))
+			.andExpect(jsonPath("$.address").value("Rua Teste 10"))
+			.andExpect(jsonPath("$._links.self.href").value("http://localhost/api/customer/1"));
+	}
+	
+	@Test
+	void deleteTest() throws Exception {
+		mockMvc.perform(delete(URI + "/{document}", 1L))
+			.andExpect(status().isOk());
 	}
 	
 }

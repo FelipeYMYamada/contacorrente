@@ -23,6 +23,7 @@ public class CustomerRespDTO extends RepresentationModel<CustomerRespDTO> implem
 
 	public CustomerRespDTO(Long document, String entityType, String name, String address) {
 		this.document = document;
+		this.entityType = entityType;
 		this.name = name;
 		this.address = address;
 	}

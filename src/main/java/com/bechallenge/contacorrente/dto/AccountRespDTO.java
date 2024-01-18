@@ -26,7 +26,7 @@ public class AccountRespDTO extends RepresentationModel<AccountRespDTO> implemen
 		this.status = status;
 		this.customerId = customerId;
 	}
-
+	
 	public Long getId() {
 		return id;
 	}

@@ -23,7 +23,7 @@ public class Account implements Serializable {
 	private static final long serialVersionUID = 1L;
 	
 	@Id
-	@GeneratedValue(strategy = GenerationType.AUTO)
+	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	private Long id;
 	
 	@NaturalId
@@ -53,6 +53,17 @@ public class Account implements Serializable {
 		this.status = status;
 		this.customerId = customerId;
 	}
+	
+	public Account(
+			@NotNull(message = "Agency can not be null") Integer agency,
+			@NotNull(message = "Balance can not be null") BigDecimal balance,
+			@NotNull(message = "Status can not be null") Boolean status, Customer customerId) {
+		this.agency = agency;
+		this.balance = balance;
+		this.status = status;
+		this.customerId = customerId;
+	}
+
 
 	public Long getId() {
 		return id;
