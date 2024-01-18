@@ -69,10 +69,7 @@ public class AccountRespDTO extends RepresentationModel<AccountRespDTO> implemen
 
 	@Override
 	public int hashCode() {
-		final int prime = 31;
-		int result = super.hashCode();
-		result = prime * result + Objects.hash(agency, balance, customerId, id, status);
-		return result;
+		return Objects.hash(agency, balance, customerId, id, status);
 	}
 
 	@Override
@@ -94,5 +91,5 @@ public class AccountRespDTO extends RepresentationModel<AccountRespDTO> implemen
 		return "AccountRespDTO [id=" + id + ", agency=" + agency + ", balance=" + balance + ", status=" + status
 				+ ", customerId=" + customerId + "]";
 	}
-	
+
 }

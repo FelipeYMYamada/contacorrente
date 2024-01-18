@@ -2,6 +2,7 @@ package com.bechallenge.contacorrente.dto;
 
 import java.io.Serializable;
 import java.math.BigDecimal;
+import java.util.Objects;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -66,6 +67,24 @@ public class AccountReqDTO implements Serializable {
 
 	public void setCustomerDocument(Long customerDocument) {
 		this.customerDocument = customerDocument;
+	}
+
+	@Override
+	public int hashCode() {
+		return Objects.hash(agency, balance, customerDocument, status);
+	}
+
+	@Override
+	public boolean equals(Object obj) {
+		if (this == obj)
+			return true;
+		if (obj == null)
+			return false;
+		if (getClass() != obj.getClass())
+			return false;
+		AccountReqDTO other = (AccountReqDTO) obj;
+		return Objects.equals(agency, other.agency) && Objects.equals(balance, other.balance)
+				&& Objects.equals(customerDocument, other.customerDocument) && Objects.equals(status, other.status);
 	}
 
 	@Override
